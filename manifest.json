@@ -1,0 +1,10 @@
+{
+  "name": "SliceRush",
+  "short_name": "SliceRush",
+  "description": "A fun and exciting fruit slicing game with combos, boss fruits and fever mode.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "background_color": "#071b2b",
+  "theme_color": "#071b2b",
+  "orientation": "portrait"
+}
