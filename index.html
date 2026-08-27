@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fruit Zen Pro V2</title>
+
+<style>
+*{
+ box-sizing:border-box;
+ -webkit-tap-highlight-color:transparent;
+}
+html,body{
+ margin:0;width:100%;height:100%;
+ overflow:hidden;
+ font-family:Arial,sans-serif;
+ background:#071b2b;
+ color:white;
+ touch-action:none;
+}
+#game{
+ position:fixed;
+ inset:0;
+ overflow:hidden;
+ background:linear-gradient(#071b2b,#123b4a 55%,#214b35);
+}
+#game.sunset{
+ background:linear-gradient(#401d52,#c35a4a,#f6a34a);
+}
+#game.garden{
+ background:linear-gradient(#13352c,#437c54,#9ccc74);
+}
+#game.ocean{
+ background:linear-gradient(#061b44,#075d86,#1ca5b8);
+}
+#hud{
+ position:absolute;
+ top:0;
+ left:0;
+ width:100%;
+ padding:8px;
+ display:flex;
+ justify-content:space-between;
+ z-index:30;
+ pointer-events:none;
+}
+.panel{
+ background:rgba(0,0,0,.38);
+ backdrop-filter:blur(8px);
+ padding:6px 9px;
+ border-radius:12px;
+ text-align:center;
+ border:1px solid rgba(255,255,255,.15);
+}
+.label{font-size:9px;opacity:.7}
+.value{font-size:16px;font-weight:bold}
+
+#controls{
+ position:absolute;
+ right:10px;
+ top:78px;
+ z-index:50;
+ display:flex;
+ flex-direction:column;
+ gap:7px;
+}
+.icon{
+ width:42px;
+ height:42px;
+ border:0;
+ border-radius:50%;
+ background:rgba(0,0,0,.5);
+ color:white;
+ font-size:18px;
+}
+
+.fruit{
+ position:absolute;
+ width:74px;
+ height:74px;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ font-size:55px;
+ z-index:10;
+ user-select:none;
+ filter:drop-shadow(0 7px 7px rgba(0,0,0,.35));
+}
+
+.boss{
+ font-size:100px;
+ width:130px;
+ height:130px;
+ filter:drop-shadow(0 0 20px gold);
+}
+
+.golden{
+ animation:gold .7s infinite alternate;
+}
+@keyframes gold{
+ from{filter:drop-shadow(0 0 4px gold)}
+ to{filter:drop-shadow(0 0 22px gold)}
+}
+
+#slashLayer{
+ position:absolute;
+ inset:0;
+ pointer-events:none;
+ z-index:100;
+}
+.slash{
+ position:absolute;
+ height:6px;
+ border-radius:20px;
+ transform-origin:left center;
+ animation:fade .2s forwards;
+ box-shadow:0 0 15px white;
+}
+@keyframes fade{
+ to{opacity:0}
+}
+
+.particle{
+ position:absolute;
+ width:10px;
+ height:10px;
+ border-radius:50%;
+ z-index:20;
+ pointer-events:none;
+ animation:particle .7s forwards;
+}
+@keyframes particle{
+ to{
+  transform:translate(var(--x),var(--y)) scale(.1);
+  opacity:0;
+ }
+}
+
+#combo{
+ position:absolute;
+ top:110px;
+ left:50%;
+ transform:translateX(-50%);
+ z-index:50;
+ font-size:27px;
+ font-weight:bold;
+ color:#ffe75d;
+ text-shadow:0 3px 8px black;
+ opacity:0;
+}
+
+#message{
+ position:absolute;
+ top:45%;
+ left:50%;
+ transform:translate(-50%,-50%);
+ z-index:80;
+ font-size:32px;
+ font-weight:bold;
+ text-align:center;
+ text-shadow:0 4px 12px black;
+ opacity:0;
+ transition:.3s;
+ pointer-events:none;
+}
+
+#power{
+ position:absolute;
+ bottom:15px;
+ left:15px;
+ z-index:40;
+ font-weight:bold;
+}
+
+#menu,#pauseMenu,#shopMenu{
+ position:absolute;
+ inset:0;
+ z-index:200;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ background:rgba(0,0,0,.58);
+ backdrop-filter:blur(8px);
+}
+#pauseMenu,#shopMenu{display:none}
+
+.card{
+ width:min(92%,430px);
+ max-height:90vh;
+ overflow:auto;
+ text-align:center;
+ padding:24px;
+ border-radius:25px;
+ background:rgba(8,25,38,.96);
+ border:1px solid rgba(255,255,255,.15);
+}
+.card h1{margin:5px 0 12px}
+.card p{line-height:1.6;color:#dce7eb}
+
+button{
+ cursor:pointer;
+}
+.bigBtn,.smallBtn{
+ border:0;
+ color:white;
+ padding:13px 18px;
+ margin:5px;
+ border-radius:14px;
+ font-weight:bold;
+ background:#21845d;
+}
+.smallBtn{background:#35586a}
+
+.shopItem{
+ margin:8px;
+ padding:12px;
+ border-radius:12px;
+ background:rgba(255,255,255,.08);
+}
+
+#modeRow{
+ display:flex;
+ justify-content:center;
+ flex-wrap:wrap;
+}
+
+.fever{
+ animation:fever .5s infinite alternate;
+}
+@keyframes fever{
+ from{filter:brightness(1)}
+ to{filter:brightness(1.5) saturate(1.6)}
+}
+
+.shake{
+ animation:shake .3s;
+}
+@keyframes shake{
+ 25%{transform:translate(-10px,5px)}
+ 50%{transform:translate(10px,-5px)}
+ 75%{transform:translate(-7px,4px)}
+}
+
+@media(max-width:500px){
+ .fruit{width:62px;height:62px;font-size:47px}
+ .value{font-size:13px}
+ .panel{padding:5px}
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+<div id="slashLayer"></div>
+<div id="combo"></div>
+<div id="message"></div>
+<div id="power"></div>
+
+<div id="hud">
+ <div class="panel"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
+ <div class="panel"><div class="label">LEVEL</div><div class="value" id="level">1</div></div>
+ <div class="panel"><div class="label">COINS</div><div class="value" id="coins">0</div></div>
+ <div class="panel"><div class="label">LIVES</div><div class="value" id="lives">❤️❤️❤️❤️❤️</div></div>
+</div>
+
+<div id="controls">
+ <button class="icon" id="pause">⏸</button>
+ <button class="icon" id="music">🎵</button>
+ <button class="icon" id="sound">🔊</button>
+ <button class="icon" id="full">⛶</button>
+</div>
+
+<div id="menu">
+ <div class="card">
+  <h1>🍉 FRUIT ZEN PRO V2</h1>
+  <p>Slice • Combo • Fever • Boss Fruits • Coins</p>
+
+  <div id="modeRow">
+   <button class="smallBtn mode" data-mode="classic">Classic</button>
+   <button class="smallBtn mode" data-mode="zen">Zen</button>
+   <button class="smallBtn mode" data-mode="time">Time Attack</button>
+  </div>
+
+  <button class="bigBtn" id="play">PLAY ▶</button>
+  <button class="smallBtn" id="shop">🪙 SHOP</button>
+
+  <p id="bestText"></p>
+ </div>
+</div>
+
+<div id="pauseMenu">
+ <div class="card">
+  <h1>⏸ PAUSED</h1>
+  <button class="bigBtn" id="resume">RESUME</button>
+  <button class="smallBtn" id="restart">RESTART</button>
+ </div>
+</div>
+
+<div id="shopMenu">
+ <div class="card">
+  <h1>🛒 BLADE SHOP</h1>
+  <p>Your Coins: <span id="shopCoins">0</span></p>
+
+  <div class="shopItem">
+   <b>⚪ Classic Blade</b><br>
+   Free<br>
+   <button class="smallBtn blade" data-blade="white">USE</button>
+  </div>
+
+  <div class="shopItem">
+   <b>🔥 Fire Blade</b><br>
+   100 Coins<br>
+   <button class="smallBtn blade" data-blade="orange" data-cost="100">BUY / USE</button>
+  </div>
+
+  <div class="shopItem">
+   <b>💙 Ice Blade</b><br>
+   200 Coins<br>
+   <button class="smallBtn blade" data-blade="#55dfff" data-cost="200">BUY / USE</button>
+  </div>
+
+  <div class="shopItem">
+   <b>💜 Neon Blade</b><br>
+   300 Coins<br>
+   <button class="smallBtn blade" data-blade="#e75cff" data-cost="300">BUY / USE</button>
+  </div>
+
+  <button class="bigBtn" id="closeShop">CLOSE</button>
+ </div>
+</div>
+
+</div>
+
+<script>
+const game=document.getElementById("game");
+const scoreEl=document.getElementById("score");
+const levelEl=document.getElementById("level");
+const coinsEl=document.getElementById("coins");
+const livesEl=document.getElementById("lives");
+const comboEl=document.getElementById("combo");
+const message=document.getElementById("message");
+const slashLayer=document.getElementById("slashLayer");
+const powerEl=document.getElementById("power");
+
+let score=0,lives=5,level=1;
+let playing=false,paused=false;
+let objects=[];
+let lastTime=0,spawnTimer=0;
+let lastPoint=null;
+let combo=0,comboTimer;
+let mode="classic";
+let fever=false,feverTimer;
+let multiplier=1;
+let timeLeft=60;
+let gameTimer=null;
+
+let coins=Number(localStorage.getItem("fzCoins")||0);
+let best=Number(localStorage.getItem("fzBest")||0);
+let blade=localStorage.getItem("fzBlade")||"white";
+let owned=JSON.parse(localStorage.getItem("fzOwned")||'["white"]');
+
+const fruits=[
+ {e:"🍎",p:10,c:"#ff4b4b"},
+ {e:"🍊",p:12,c:"#ff9b42"},
+ {e:"🍉",p:20,c:"#f25572"},
+ {e:"🍋",p:15,c:"#ffe25c"},
+ {e:"🍓",p:20,c:"#ff5070"},
+ {e:"🍒",p:25,c:"#d93855"},
+ {e:"🥝",p:25,c:"#7bc96f"},
+ {e:"🍍",p:30,c:"#ffd15c"},
+ {e:"🍇",p:25,c:"#9d6ad8"}
+];
+
+function updateHUD(){
+ scoreEl.textContent=score;
+ levelEl.textContent=level;
+ coinsEl.textContent=coins;
+ livesEl.textContent="❤️".repeat(lives)+"🖤".repeat(5-lives);
+ document.getElementById("bestText").textContent="🏆 Best Score: "+best;
+}
+
+function spawn(){
+ if(!playing||paused)return;
+
+ let roll=Math.random();
+ let type="fruit";
+ let data;
+
+ if(fever){
+  data=fruits[Math.floor(Math.random()*fruits.length)];
+ }else if(roll<Math.min(.08+level*.01,.22)){
+  type="bomb";
+ }else if(roll>.95){
+  type="gold";
+ }else if(roll>.88){
+  type="power";
+  data={e:"⭐",power:"double"};
+ }else if(roll>.83){
+  type="power";
+  data={e:"⏳",power:"slow"};
+ }else{
+  data=fruits[Math.floor(Math.random()*fruits.length)];
+ }
+
+ if(score>0&&score%300<15&&Math.random()<.08){
+  type="boss";
+ }
+
+ const el=document.createElement("div");
+ el.className="fruit";
+
+ if(type==="bomb")el.textContent="💣";
+ else if(type==="gold"){
+  el.textContent="⭐";
+  el.classList.add("golden");
+ }
+ else if(type==="boss"){
+  el.textContent="🍉";
+  el.classList.add("boss");
+ }
+ else el.textContent=data.e;
+
+ game.appendChild(el);
+
+ let speed=.52+(level-1)*.055;
+
+ objects.push({
+  el,type,data,
+  x:10+Math.random()*(innerWidth-100),
+  y:innerHeight+80,
+
+  /* HIGHER JUMP */
+  vy:-(.95+Math.random()*.30)*speed,
+
+  vx:(Math.random()-.5)*.15*speed,
+  gravity:.0015*speed,
+  hp:type==="boss"?5:1,
+  cut:false,
+  rot:Math.random()*360,
+  rs:(Math.random()-.5)*.4
+ });
+}
+
+function loop(t){
+ if(!playing)return;
+ requestAnimationFrame(loop);
+
+ if(paused){
+  lastTime=t;
+  return;
+ }
+
+ let dt=Math.min(t-lastTime,30);
+ lastTime=t;
+
+ spawnTimer+=dt;
+
+ level=Math.min(20,Math.floor(score/100)+1);
+
+ let delay=fever?220:Math.max(300,1050-level*42);
+
+ if(spawnTimer>delay){
+  spawn();
+  if(Math.random()<.2+level*.01) setTimeout(spawn,150);
+  spawnTimer=0;
+ }
+
+ for(let i=objects.length-1;i>=0;i--){
+  let o=objects[i];
+
+  o.x+=o.vx*dt;
+  o.y+=o.vy*dt;
+  o.vy+=o.gravity*dt;
+  o.rot+=o.rs*dt;
+
+  o.el.style.transform=`translate(${o.x}px,${o.y}px) rotate(${o.rot}deg)`;
+
+  if(o.y>innerHeight+150){
+   if(!o.cut&&o.type==="fruit"&&mode!=="zen")loseLife();
+   o.el.remove();
+   objects.splice(i,1);
+  }
+ }
+
+ updateHUD();
+}
+
+function cut(a,b){
+ objects.forEach(o=>{
+  if(o.cut)return;
+
+  let cx=o.x+(o.type==="boss"?65:35);
+  let cy=o.y+(o.type==="boss"?65:35);
+
+  if(distanceToSegment(cx,cy,a.x,a.y,b.x,b.y)<(o.type==="boss"?70:42)){
+   hit(o,cx,cy,a,b);
+  }
+ });
+}
+
+function hit(o,cx,cy,a,b){
+
+ if(o.type==="bomb"){
+  bomb(o);
+  return;
+ }
+
+ if(o.type==="power"){
+  activatePower(o);
+  return;
+ }
+
+ if(o.type==="boss"){
+  o.hp--;
+  particles(o,"#ff4260");
+  if(o.hp>0){
+   show("👑 BOSS HIT! "+o.hp);
+   sound(200,.1,.08);
+   return;
+  }
+  score+=150*multiplier;
+  coins+=20;
+  removeObject(o);
+  show("👑 BOSS DEFEATED!");
+  particles(o,"gold",35);
+  return;
+ }
+
+ let points=o.type==="gold"?100:o.data.p;
+
+ let critical=Math.hypot(
+  cx-(a.x+b.x)/2,
+  cy-(a.y+b.y)/2
+ )<18;
+
+ if(critical){
+  points*=2;
+  show("🎯 CRITICAL!");
+ }
+
+ score+=points*multiplier;
+ coins+=Math.ceil(points/10);
+
+ combo++;
+
+ clearTimeout(comboTimer);
+ comboTimer=setTimeout(()=>{
+  combo=0;
+  comboEl.style.opacity=0;
+ },900);
+
+ if(combo>=3){
+  comboEl.textContent="🔥 "+combo+"x COMBO";
+  comboEl.style.opacity=1;
+ }
+
+ if(combo>=8&&!fever)startFever();
+
+ particles(o,o.type==="gold"?"gold":o.data.c);
+ removeObject(o);
+ sound(800,.08,.06);
+ vibrate(10);
+
+ if(score>best){
+  best=score;
+  localStorage.setItem("fzBest",best);
+ }
+ localStorage.setItem("fzCoins",coins);
+}
+
+function removeObject(o){
+ o.cut=true;
+ let index=objects.indexOf(o);
+ if(index>-1)objects.splice(index,1);
+ o.el.remove();
+}
+
+function bomb(o){
+ removeObject(o);
+ lives--;
+ score=Math.max(0,score-25);
+ game.classList.add("shake");
+ setTimeout(()=>game.classList.remove("shake"),300);
+ show("💥 BOMB!");
+ sound(80,.35,.12);
+ vibrate([40,30,80]);
+ if(lives<=0)endGame();
+}
+
+function loseLife(){
+ lives--;
+ if(lives<=0)endGame();
+}
+
+function startFever(){
+ fever=true;
+ multiplier=3;
+ game.classList.add("fever");
+ show("🔥 FEVER MODE! 3X SCORE!");
+ clearTimeout(feverTimer);
+
+ feverTimer=setTimeout(()=>{
+  fever=false;
+  multiplier=1;
+  game.classList.remove("fever");
+  show("FEVER OVER");
+ },8000);
+}
+
+function activatePower(o){
+ if(o.data.power==="double"){
+  multiplier=2;
+  show("⭐ DOUBLE SCORE!");
+  powerEl.textContent="⭐ 2X SCORE";
+  setTimeout(()=>{
+   if(!fever)multiplier=1;
+   powerEl.textContent="";
+  },6000);
+ }else{
+  show("⏳ SLOW MOTION!");
+  powerEl.textContent="⏳ SLOW";
+  objects.forEach(x=>{
+   x.vx*=.4;
+   x.vy*=.4;
+  });
+  setTimeout(()=>{
+   powerEl.textContent="";
+  },4000);
+ }
+ particles(o,"#70dfff");
+ removeObject(o);
+}
+
+function particles(o,color,count=18){
+ for(let i=0;i<count;i++){
+  let p=document.createElement("div");
+  p.className="particle";
+  p.style.left=(o.x+35)+"px";
+  p.style.top=(o.y+35)+"px";
+  p.style.background=color;
+
+  let angle=Math.random()*Math.PI*2;
+  let d=30+Math.random()*100;
+
+  p.style.setProperty("--x",Math.cos(angle)*d+"px");
+  p.style.setProperty("--y",Math.sin(angle)*d+"px");
+
+  game.appendChild(p);
+  setTimeout(()=>p.remove(),700);
+ }
+}
+
+function distanceToSegment(px,py,x1,y1,x2,y2){
+ let dx=x2-x1,dy=y2-y1;
+ let l=dx*dx+dy*dy;
+ if(l===0)return Math.hypot(px-x1,py-y1);
+ let t=((px-x1)*dx+(py-y1)*dy)/l;
+ t=Math.max(0,Math.min(1,t));
+ return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+
+function slash(a,b){
+ let dx=b.x-a.x,dy=b.y-a.y;
+ let len=Math.hypot(dx,dy);
+ if(len<3)return;
+
+ let s=document.createElement("div");
+ s.className="slash";
+ s.style.left=a.x+"px";
+ s.style.top=a.y+"px";
+ s.style.width=len+"px";
+ s.style.background=`linear-gradient(90deg,transparent,${blade},white,transparent)`;
+ s.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;
+
+ slashLayer.appendChild(s);
+ setTimeout(()=>s.remove(),200);
+}
+
+function pos(e){
+ if(e.touches&&e.touches.length){
+  return {
+   x:e.touches[0].clientX,
+   y:e.touches[0].clientY
+  };
+ }
+ return {x:e.clientX,y:e.clientY};
+}
+
+game.addEventListener("mousedown",e=>{
+ if(playing&&!paused)lastPoint=pos(e);
+});
+
+game.addEventListener("mousemove",e=>{
+ if(!lastPoint||!playing||paused)return;
+ let p=pos(e);
+ slash(lastPoint,p);
+ cut(lastPoint,p);
+ lastPoint=p;
+});
+
+game.addEventListener("mouseup",()=>lastPoint=null);
+
+game.addEventListener("touchstart",e=>{
+ if(playing&&!paused){
+  e.preventDefault();
+  lastPoint=pos(e);
+ }
+},{passive:false});
+
+game.addEventListener("touchmove",e=>{
+ if(!lastPoint||!playing||paused)return;
+ e.preventDefault();
+ let p=pos(e);
+ slash(lastPoint,p);
+ cut(lastPoint,p);
+ lastPoint=p;
+},{passive:false});
+
+game.addEventListener("touchend",()=>lastPoint=null);
+
+function show(text){
+ message.textContent=text;
+ message.style.opacity=1;
+ setTimeout(()=>message.style.opacity=0,1000);
+}
+
+function vibrate(v){
+ if(navigator.vibrate)navigator.vibrate(v);
+}
+
+/* SIMPLE ORIGINAL GAME MUSIC */
+let ctx=null;
+let musicOn=true;
+let soundOn=true;
+let musicTimer=null;
+
+function audio(){
+ if(!ctx){
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+ }
+ if(ctx.state==="suspended")ctx.resume();
+}
+
+function tone(freq,duration=.15,volume=.05){
+ if(!soundOn)return;
+ audio();
+
+ let osc=ctx.createOscillator();
+ let gain=ctx.createGain();
+
+ osc.frequency.value=freq;
+ gain.gain.value=volume;
+
+ osc.connect(gain);
+ gain.connect(ctx.destination);
+
+ osc.start();
+ gain.gain.exponentialRampToValueAtTime(
+  .001,
+  ctx.currentTime+duration
+ );
+ osc.stop(ctx.currentTime+duration);
+}
+
+function sound(freq,dur,vol){
+ if(!soundOn)return;
+ audio();
+ tone(freq,dur,vol);
+}
+
+const musicNotes=[
+ 220,277,330,392,
+ 330,277,247,220,
+ 294,370,440,370,
+ 330,294,247,220
+];
+
+function startMusic(){
+ if(!musicOn)return;
+ audio();
+ let i=0;
+ clearInterval(musicTimer);
+
+ musicTimer=setInterval(()=>{
+  if(!musicOn)return;
+  tone(musicNotes[i],.28,.035);
+  i=(i+1)%musicNotes.length;
+ },320);
+}
+
+function stopMusic(){
+ clearInterval(musicTimer);
+}
+
+document.getElementById("music").onclick=()=>{
+ musicOn=!musicOn;
+ document.getElementById("music").textContent=musicOn?"🎵":"🔇";
+ if(musicOn)startMusic();
+ else stopMusic();
+};
+
+document.getElementById("sound").onclick=()=>{
+ soundOn=!soundOn;
+ document.getElementById("sound").textContent=soundOn?"🔊":"🔇";
+};
+
+function reset(){
+ score=0;
+ lives=5;
+ level=1;
+ combo=0;
+ fever=false;
+ multiplier=1;
+
+ objects.forEach(o=>o.el.remove());
+ objects=[];
+
+ clearInterval(gameTimer);
+ updateHUD();
+}
+
+function startGame(){
+ reset();
+
+ document.getElementById("menu").style.display="none";
+ document.getElementById("pauseMenu").style.display="none";
+
+ playing=true;
+ paused=false;
+ lastTime=performance.now();
+
+ if(mode==="time"){
+  timeLeft=60;
+  gameTimer=setInterval(()=>{
+   if(!paused&&playing){
+    timeLeft--;
+    show("⏱ "+timeLeft+"s");
+    if(timeLeft<=0)endGame();
+   }
+  },1000);
+ }
+
+ startMusic();
+ requestAnimationFrame(loop);
+}
+
+function endGame(){
+ if(!playing)return;
+
+ playing=false;
+ clearInterval(gameTimer);
+ stopMusic();
+
+ localStorage.setItem("fzCoins",coins);
+
+ document.getElementById("menu").style.display="flex";
+
+ document.querySelector("#menu .card").innerHTML=`
+ <h1>GAME OVER 🍉</h1>
+ <p>
+ Score: <b>${score}</b><br>
+ Best: <b>${best}</b><br>
+ Coins: <b>${coins}</b><br>
+ Level: <b>${level}</b>
+ </p>
+ <button class="bigBtn" id="playAgain">PLAY AGAIN ▶</button>
+ <button class="smallBtn" id="backShop">🛒 SHOP</button>
+ `;
+
+ document.getElementById("playAgain").onclick=startGame;
+ document.getElementById("backShop").onclick=openShop;
+}
+
+document.getElementById("play").onclick=startGame;
+
+document.querySelectorAll(".mode").forEach(b=>{
+ b.onclick=()=>{
+  mode=b.dataset.mode;
+  document.querySelectorAll(".mode").forEach(x=>x.style.background="#35586a");
+  b.style.background="#21845d";
+ }
+});
+
+document.getElementById("pause").onclick=()=>{
+ if(!playing)return;
+ paused=!paused;
+ document.getElementById("pauseMenu").style.display=paused?"flex":"none";
+};
+
+document.getElementById("resume").onclick=()=>{
+ paused=false;
+ lastTime=performance.now();
+ document.getElementById("pauseMenu").style.display="none";
+};
+
+document.getElementById("restart").onclick=startGame;
+
+document.getElementById("full").onclick=()=>{
+ if(!document.fullscreenElement){
+  document.documentElement.requestFullscreen?.();
+ }else{
+  document.exitFullscreen?.();
+ }
+};
+
+function openShop(){
+ document.getElementById("shopCoins").textContent=coins;
+ document.getElementById("shopMenu").style.display="flex";
+}
+
+document.getElementById("shop").onclick=openShop;
+
+document.getElementById("closeShop").onclick=()=>{
+ document.getElementById("shopMenu").style.display="none";
+};
+
+document.addEventListener("click",e=>{
+ if(!e.target.classList.contains("blade"))return;
+
+ let color=e.target.dataset.blade;
+ let cost=Number(e.target.dataset.cost||0);
+
+ if(!owned.includes(color)){
+  if(coins<cost){
+   show("❌ NOT ENOUGH COINS");
+   return;
+  }
+
+  coins-=cost;
+  owned.push(color);
+  localStorage.setItem("fzOwned",JSON.stringify(owned));
+  localStorage.setItem("fzCoins",coins);
+ }
+
+ blade=color;
+ localStorage.setItem("fzBlade",blade);
+
+ show("⚔️ BLADE EQUIPPED!");
+ document.getElementById("shopCoins").textContent=coins;
+ updateHUD();
+});
+
+updateHUD();
+</script>
+
+</body>
+  </html>
